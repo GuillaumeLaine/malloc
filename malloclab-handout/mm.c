@@ -67,17 +67,19 @@ static void *coalesce(void *bp){
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
 
+    // Previous and next blocks are allocated
     if (prev_alloc && next_alloc){
         return bp;
     }
 
+    // Only previous block is allocated
     else if (prev_alloc && !next_alloc){
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(bp), PACK(size,0));
         PUT(FTRP(bp), PACK(size,0));
-
     }
 
+    // Only next block is allocated
     else if (!prev_alloc && next_alloc){
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
@@ -85,6 +87,7 @@ static void *coalesce(void *bp){
         bp = PREV_BLKP(bp);
     }
 
+    // Previous and next blocks are free
     else{
         size += GET_SIZE(HDRP(PREV_BLKP(bp)))+ GET_SIZE(FTRP(NEXT_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
@@ -103,20 +106,19 @@ static void *extend_heap(size_t words){
     size = (words % 2) ? (words+1)*WSIZE : words * WSIZE; // make sure size is divisible by DSIZE
     bp = mem_sbrk(size);
     if ((long)(bp) == -1){
-        printf("NOOOOOOOO\n");
         return NULL;
     }
 
     PUT(HDRP(bp), PACK(size,0));            // This HDR overwrites old epilogue
-    PUT(FTRP(bp), PACK(size,0));            // This FTR is 2 WSIZE befire the new brk pointer
-    PUT(HDRP(NEXT_BLKP(bp)),PACK(0,1));     // Create new Epilogue as next block to newly free space, and WSIZE before brk pointer 
+    PUT(FTRP(bp), PACK(size,0));            // This FTR is 2 WSIZE before the new brk pointer
+    PUT(HDRP(NEXT_BLKP(bp)),PACK(0,1));     // Create new Epilogue as next block to newly free space, placed WSIZE before brk pointer 
 
     return coalesce(bp);
 }
 
 char *find_fit(size_t size){
     // Implemented using first fit 
-    //void *bp = mem_heap_lo() + 2*WSIZE; // start right after Prologue HDR
+
     void *bp = heap_listp;
     void *end = mem_heap_hi();
 
@@ -150,16 +152,7 @@ void place(char* bp, size_t size){
         PUT(HDRP(splitp), PACK(sizesplit,0));
         PUT(FTRP(splitp), PACK(sizesplit,0));
 
-        //put the allocated block at the end of the free block
-
-        /*
-        PUT(HDRP(bp), PACK(sizesplit,0));
-        PUT(FTRP(bp), PACK(sizesplit,0));
-        PUT(HDRP(NEXT_BLKP(bp)), PACK(size, 1));
-        PUT(FTRP(PREV_BLKP(bp)), PACK(size, 1));
-        */
-
-        bp = NEXT_BLKP(bp);
+        bp = NEXT_BLKP(bp); // bp now points 
     }
 
     // Do not split
