@@ -104,7 +104,7 @@ static void *extend_heap(size_t words){
     size_t size;
 
     size = (words % 2) ? (words+1)*WSIZE : words * WSIZE; // make sure size is divisible by DSIZE
-    bp = mem_sbrk(size);
+    bp = mem_sbrk(size);                    // points to the old brk pointer
     if ((long)(bp) == -1){
         return NULL;
     }
@@ -123,11 +123,18 @@ char *find_fit(size_t size){
     void *end = mem_heap_hi();
 
     while ((bp < end) && (GET_ALLOC(HDRP(bp)) || size > GET_SIZE(HDRP(bp)))){
-        printf("Searching for fit for size %d. Current block of size %d at %p\n", size, GET_SIZE(HDRP(bp)), bp);
+        printf("Trying to fit %d bytes in block of size %d at %p...\n", size, GET_SIZE(HDRP(bp)), bp);
+        printf("Prologue at %p, Epilogue at %p\n", heap_listp, end);
+        if (GET_ALLOC(HDRP(bp))) {
+            printf("Already allocated.\n");
+        }
+        else {
+            printf("Size insufficient.\n");
+        }
         bp = NEXT_BLKP(bp);
     }
 
-    if (bp < end) {
+    if (bp >= end) {
         // no fit. need to extend heap.
         return NULL;
     }
@@ -138,7 +145,7 @@ char *find_fit(size_t size){
 void place(char* bp, size_t size){
     size_t sizeblock = GET_SIZE(HDRP(bp));
 
-    printf("Placing %d bytes in %d bytes of free space\n", size, sizeblock);
+    printf("Placing %d bytes in %d bytes of free space at %p\n", size, sizeblock, bp);
 
     if (sizeblock >= size + 2*DSIZE){ // Split iff remaining free block has space for FTR, HDR, and 1 DSIZE (to respect alignement requirements) of payload
         size_t sizesplit = sizeblock - size;
@@ -270,7 +277,7 @@ void *mm_malloc(size_t size)
     // no place left to fit a size
 
     extendsize = MAX(asize, CHUNKSIZE);
-    printf("No fit found. Extending heap by %d\n", extendsize);
+    printf("No fit found in heap. Extending heap by %d\n", extendsize);
     bp = extend_heap(extendsize/WSIZE);
     if (bp  == NULL){
         printf("sbrk failed\n");
