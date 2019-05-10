@@ -173,14 +173,14 @@ int mm_check(void) {
     while((char *)mem_heap_hi()>p){
         if (p> heap_listp){
             if (!GET_ALLOC(HDRP(p)) && (!GET_ALLOC(NEXT_BLKP(HDRP(p))) || !GET_ALLOC(PREV_BLKP(HDRP(p))))){ //check that a free block has no free block neighboors
-            printf("\nproblem with coalesce()\n")
+            printf("\nproblem with coalesce()\n");
             return 0;
             }
         }
 
         else{
             if (!GET_ALLOC(HDRP(p)) && !GET_ALLOC(NEXT_BLKP(p))){
-                printf("\nproblem with coalesce()\n")
+                printf("\nproblem with coalesce()\n");
                 return 0;
             }
         }
@@ -189,7 +189,7 @@ int mm_check(void) {
         p = NEXT_BLKP(p);
     }
 
-    if (mem_heapssize()!=totalsize){
+    if (mem_heapsize()!=totalsize){
         printf("\nthe size of the heap is not coherent\n");
         return 0;
     }
