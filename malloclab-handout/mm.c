@@ -100,13 +100,8 @@ static void *extend_heap(size_t words){
     char *bp;
     size_t size;
 
-<<<<<<< HEAD
-    size = (words % 2) ? (words+1)*WSIZE : words * WSIZE;
-    bp = mem_sbrk(size);                    
-=======
     size = (words % 2) ? (words+1)*WSIZE : words * WSIZE; // make sure size is divisible by DSIZE
     bp = mem_sbrk(size);
->>>>>>> 50404f00f1ef08733821659ba39fe79a143eff63
     if ((long)(bp) == -1){
         printf("NOOOOOOOO\n");
         return NULL;
