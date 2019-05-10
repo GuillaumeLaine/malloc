@@ -179,9 +179,18 @@ int mm_check(void) {
     size_t totalsize;
     //Check coalescing 
     while((char *)mem_heap_hi()>p){
-        if (!GET_ALLOC(HDRP(p)) && (GET_ALLOC(NEXT_BLKP(HDRP(p))) || GET_ALLOC(PREV_BLKP(HDRP(p))))){ //check that a free block has no free block neighboors
+        if (p> heap_listp){
+            if (!GET_ALLOC(HDRP(p)) && (!GET_ALLOC(NEXT_BLKP(HDRP(p))) || !GET_ALLOC(PREV_BLKP(HDRP(p))))){ //check that a free block has no free block neighboors
             printf("problem with coalesce()")
             return 0;
+            }
+        }
+
+        else{
+            if (!GET_ALLOC(HDRP(p)) && !GET_ALLOC(NEXT_BLKP(p))){
+                printf("problem with coalesce()")
+                return 0;
+            }
         }
 
         totalsize += GET_SIZE(HDRP(p));
