@@ -237,6 +237,10 @@ void *mm_malloc(size_t size)
         return NULL;
     }
     printf("try to allocate memory\n");
+    
+    asize = ALIGN(size) + DSIZE; //align size and add space for HDR and FTR
+
+    /*
     if (size <= DSIZE) {
         asize = 2 * DSIZE;
     }
@@ -244,11 +248,12 @@ void *mm_malloc(size_t size)
     else{
         asize = DSIZE * ((size + DSIZE + DSIZE - 1)/DSIZE);
     }
+    */
 
     bp = find_fit(asize);
 
     if (bp != NULL){
-        place(bp,asize);
+        place(bp, asize);
         printf("malloc success\n");
         return bp;
     }
@@ -256,7 +261,7 @@ void *mm_malloc(size_t size)
     extendsize = MAX(asize,CHUNKSIZE);
     bp = extend_heap(extendsize/WSIZE);
     if (bp  == NULL){
-        printf("malloc fail");
+        printf("malloc fail\n");
         return NULL;
     }
 
