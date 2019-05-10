@@ -167,6 +167,7 @@ void place(char* bp, size_t size){
     }
 }
 
+
 int mm_check(void) {
     // check for inconsistencies 
 
