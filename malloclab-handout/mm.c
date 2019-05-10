@@ -120,8 +120,8 @@ char *find_fit(size_t size){
     void *bp = heap_listp;
     void *end = mem_heap_hi();
 
-    while ((bp < end) && (GET_ALLOC(bp) || size >= GET_SIZE(bp))){
-        printf("\nRunning loop for size %d. Current block of size %d at %p\n", size, GET_SIZE(bp), bp);
+    while ((bp < end) && (GET_ALLOC(HDRP(bp)) || size >= GET_SIZE(HDRP(bp)))){
+        printf("\nRunning loop for size %d. Current block of size %d at %p\n", size, GET_SIZE(HDRP(bp)), bp);
         printf("Next block pointer %p\n", NEXT_BLKP(bp));
         printf("End pointer is %p\n", end);
         bp = NEXT_BLKP(bp);
@@ -135,10 +135,10 @@ char *find_fit(size_t size){
 }
 
 void place(char* bp, size_t size){
-    size_t sizeblock = GET_SIZE(bp);
+    size_t sizeblock = GET_SIZE(HDRP(bp));
 
 
-    if (sizeblock >= size + 3 * WSIZE){ // Split iff remaining free block has space for FTR, HDR, and 1 WSIZE of payload
+    if (sizeblock >= size + 2*DSIZE){ // Split iff remaining free block has space for FTR, HDR, and 1 DSIZE (to respect alignement requirements) of payload
         size_t sizesplit = sizeblock - size;
 
         //put allocated block before free block
@@ -166,6 +166,26 @@ void place(char* bp, size_t size){
         PUT(FTRP(bp), PACK(sizeblock,1));
     }
 }
+
+int mm_check(void) {
+    // check for inconsistencies 
+
+    //look for overlapping
+
+    char* p = heap_listp;
+
+    while((char *)mem_heap_hi()>p){
+        if (p + GET_SIZE(HDRP(p)) == NEXT_BLKP(p)){
+            p = NEXT_BLKP(p);
+        }
+        else {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+
 
 /* 
  * mm_init - initialize the malloc package.
@@ -249,7 +269,12 @@ void *mm_malloc(size_t size)
 
     if (bp != NULL){
         place(bp,asize);
-        printf("malloc success\n");
+        if (mm_check()) {
+            printf("malloc success\n");
+        }
+        else {
+            printf("check fails in mm_malloc\n");
+        }
         return bp;
     }
 
@@ -261,7 +286,12 @@ void *mm_malloc(size_t size)
     }
 
     place(bp, asize);
-    printf("malloc success with extented heap\n");
+    if (mm_check()) {
+            printf("malloc success with extented heap\n");
+        }
+    else {
+            printf("check fails in mm_malloc and try to extend heap\n");
+        }
     return bp;
 
 }
@@ -298,25 +328,6 @@ void *mm_realloc(void *ptr, size_t size)
     mm_free(oldptr);
     return newptr;
 }
-
-int mm_check(void) {
-    // check for inconsistencies 
-
-    //look for overlapping
-
-    char* p = heap_listp;
-
-    while((char *)mem_heap_hi()>=p){
-        if (p + GET_SIZE(p) == NEXT_BLKP(p)){
-            p = NEXT_BLKP(p);
-        }
-        else {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 
 
 
