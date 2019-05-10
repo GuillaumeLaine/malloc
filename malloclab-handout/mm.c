@@ -121,13 +121,13 @@ char *find_fit(size_t size){
     void *end = mem_heap_hi();
 
     while ((bp < end) && (GET_ALLOC(HDRP(bp)) || size >= GET_SIZE(HDRP(bp)))){
-        printf("\nRunning loop for size %d. Current block of size %d at %p\n", size, GET_SIZE(HDRP(bp)), bp);
-        printf("Next block pointer %p\n", NEXT_BLKP(bp));
-        printf("End pointer is %p\n", end);
+        // printf("\nFind fit for size %d. Current block of size %d at %p\n", size, GET_SIZE(HDRP(bp)), bp);
+        // printf("End pointer is %p\n", end);
         bp = NEXT_BLKP(bp);
     }
 
     if (bp < end) {
+        // no fit. need to extend heap.
         return NULL;
     }
 
@@ -143,19 +143,21 @@ void place(char* bp, size_t size){
 
         //put allocated block before free block
 
-        /*char* splitp = (char*) (bp) + size;
+        char* splitp = (char*) (bp) + size;
 
         PUT(HDRP(bp), PACK(size,1));
         PUT(FTRP(bp), PACK(size,1));
         PUT(HDRP(splitp), PACK(sizesplit,0));
-        PUT(FTRP(splitp), PACK(sizesplit,0));*/
+        PUT(FTRP(splitp), PACK(sizesplit,0));
 
         //put the allocated block at the end of the free block
 
+        /*
         PUT(HDRP(bp), PACK(sizesplit,0));
         PUT(FTRP(bp), PACK(sizesplit,0));
         PUT(HDRP(NEXT_BLKP(bp)), PACK(size, 1));
         PUT(FTRP(PREV_BLKP(bp)), PACK(size, 1));
+        */
 
         bp = NEXT_BLKP(bp);
     }
@@ -237,7 +239,7 @@ int mm_init(void)
     if (extend_heap(CHUNKSIZE/WSIZE) == NULL){ //cannot extend heap
         return -1;
     }
-    printf("\ninit success\n");
+    // printf("\ninit success\n");
     return 0;
 }
 
@@ -265,7 +267,7 @@ void *mm_malloc(size_t size)
     if (size == 0){
         return NULL;
     }
-    printf("try to allocate memory\n");
+    // printf("try to allocate memory\n");
     
     asize = ALIGN(size) + DSIZE; //align size and add space for HDR and FTR
 
@@ -282,12 +284,12 @@ void *mm_malloc(size_t size)
     bp = find_fit(asize); // find free block which can fit asize
 
     if (bp != NULL){ 
-        place(bp,asize);
+        place(bp, asize);
         if (mm_check()) {
-            printf("malloc success\n");
+            // printf("malloc success\n");
         }
         else {
-            printf("check fails in mm_malloc\n");
+            // printf("check fails in mm_malloc\n");
         }
         return bp;
     }
@@ -296,16 +298,16 @@ void *mm_malloc(size_t size)
     extendsize = MAX(asize, CHUNKSIZE);
     bp = extend_heap(extendsize/WSIZE);
     if (bp  == NULL){
-        printf("malloc fail\n");
+        // printf("malloc fail\n");
         return NULL;
     }
 
     place(bp, asize);
     if (mm_check()) {
-            printf("malloc success with extented heap\n");
+            // printf("malloc success with extented heap\n");
         }
     else {
-            printf("check fails in mm_malloc and try to extend heap\n");
+            // printf("check fails in mm_malloc and try to extend heap\n");
         }
     return bp;
 
@@ -317,7 +319,7 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {   
-    printf("try to free block\n");
+    // printf("try to free block\n");
     size_t size = GET_SIZE(HDRP(ptr));
     PUT(HDRP(ptr), PACK(size, 0));
     PUT(FTRP(ptr), PACK(size,0));
