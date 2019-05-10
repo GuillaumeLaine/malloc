@@ -101,15 +101,15 @@ static void *extend_heap(size_t words){
     size_t size;
 
     size = (words % 2) ? (words+1)*WSIZE : words * WSIZE;
-    bp = mem_sbrk(size);
+    bp = mem_sbrk(size);                    
     if ((long)(bp) == -1){
         printf("NOOOOOOOO\n");
         return NULL;
     }
 
-    PUT(HDRP(bp), PACK(size,0));
-    PUT(FTRP(bp), PACK(size,0));
-    PUT(HDRP(NEXT_BLKP(bp)),PACK(0,1));
+    PUT(HDRP(bp), PACK(size,0));            // This HDR overwrites old epilogue
+    PUT(FTRP(bp), PACK(size,0));            // This FTR is 2 WSIZE befire the new brk pointer
+    PUT(HDRP(NEXT_BLKP(bp)),PACK(0,1));     // Create new Epilogue as next block to newly free space, and WSIZE before brk pointer 
 
     return coalesce(bp);
 }
@@ -127,7 +127,7 @@ char *find_fit(size_t size){
         bp = NEXT_BLKP(bp);
     }
 
-    if (bp == end) {
+    if (bp < end) {
         return NULL;
     }
 
@@ -214,17 +214,18 @@ int mm_init(void)
 
     return 0;//
     */
-    heap_listp = mem_sbrk(4*WSIZE);
+    heap_listp = mem_sbrk(4*WSIZE); // 4 WSIZE for alignement, Prologue HDR, FTR and Epilogue
     
     if (heap_listp == (void *)-1){
         return -1;
     }
 
-    PUT(heap_listp, 0);
-    PUT(heap_listp + 1*WSIZE, PACK(DSIZE,1));
-    PUT(heap_listp + 2*WSIZE, PACK(DSIZE,1));
-    PUT(heap_listp + 3*WSIZE, PACK(0,1));
-    heap_listp += 2*WSIZE;
+    PUT(heap_listp, 0);                             // Alignment is unallocated and said to be of size 0 by convention
+    PUT(heap_listp + 1*WSIZE, PACK(DSIZE,1));       // Prologue HDR
+    PUT(heap_listp + 2*WSIZE, PACK(DSIZE,1));       // Prologue FDR
+    PUT(heap_listp + 3*WSIZE, PACK(0,1));           // Epilogue 
+
+    heap_listp += 2*WSIZE;                          // Point to Prologue 
 
     if (extend_heap(CHUNKSIZE/WSIZE) == NULL){ //cannot extend heap
         return -1;
@@ -271,9 +272,9 @@ void *mm_malloc(size_t size)
     }
     */
 
-    bp = find_fit(asize);
+    bp = find_fit(asize); // find free block which can fit asize
 
-    if (bp != NULL){
+    if (bp != NULL){ 
         place(bp,asize);
         if (mm_check()) {
             printf("malloc success\n");
@@ -284,7 +285,8 @@ void *mm_malloc(size_t size)
         return bp;
     }
 
-    extendsize = MAX(asize,CHUNKSIZE);
+    // no place left to fit a size
+    extendsize = MAX(asize, CHUNKSIZE);
     bp = extend_heap(extendsize/WSIZE);
     if (bp  == NULL){
         printf("malloc fail\n");
