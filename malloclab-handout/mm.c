@@ -169,14 +169,21 @@ int mm_check(void) {
     //look for overlapping
 
     char* p = heap_listp;
-
+    size_t totalsize;
+    //Check coalescing 
     while((char *)mem_heap_hi()>p){
-        if (p + GET_SIZE(HDRP(p)) == NEXT_BLKP(p)){
-            p = NEXT_BLKP(p);
-        }
-        else {
+        if (!GET_ALLOC(HDRP(p)) && (GET_ALLOC(NEXT_BLKP(HDRP(p))) || GET_ALLOC(PREV_BLKP(HDRP(p))))){ //check that a free block has no free block neighboors
+            printf("problem with coalesce()")
             return 0;
         }
+
+        totalsize += GET_SIZE(HDRP(p));
+        p = NEXT_BLKP(p);
+    }
+
+    if (mem_heapssize()!=totalsize){
+        printf("the size of the heap is not coherent");
+        return 0;
     }
     return 1;
 }
