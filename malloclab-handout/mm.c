@@ -18,7 +18,6 @@
 #include "mm.h"
 #include "memlib.h"
 
-//Test 7777777777
 /*********************************************************
  * NOTE TO STUDENTS: Before you do anything else, please
  * provide your team information in the following struct.
@@ -104,7 +103,7 @@ static void *extend_heap(size_t words){
     size = (words % 2) ? (words+1)*WSIZE : words * WSIZE;
     bp = mem_sbrk(size);
     if ((long)(bp) == -1){
-        printf("NOOOOOOOO");
+        printf("NOOOOOOOO\n");
         return NULL;
     }
 
@@ -138,10 +137,12 @@ char *find_fit(size_t size){
 void place(char* bp, size_t size){
     size_t sizeblock = GET_SIZE(bp);
 
-    // Split only if free space is stricly greater than space
-    // to allocate
-    if (sizeblock >= size + DSIZE){
+
+    if (sizeblock >= size + 3 * WSIZE){ // Split iff remaining free block has space for FTR, HDR, and 1 WSIZE of payload
         size_t sizesplit = sizeblock - size;
+
+        //put allocated block before free block
+
         /*char* splitp = (char*) (bp) + size;
 
         PUT(HDRP(bp), PACK(size,1));
@@ -153,21 +154,13 @@ void place(char* bp, size_t size){
 
         PUT(HDRP(bp), PACK(sizesplit,0));
         PUT(FTRP(bp), PACK(sizesplit,0));
-        PUT(HDRP(NEXT_BLKP(bp)), PACK(size,1));
+        PUT(HDRP(NEXT_BLKP(bp)), PACK(size, 1));
         PUT(FTRP(PREV_BLKP(bp)), PACK(size, 1));
 
         bp = NEXT_BLKP(bp);
-
-        /*want the next block of bp to be splitp and the next of splitp 
-        to be the current next one of bp*/
-
-        // This was already done above 
-
-        // NEXT_BLKP(splitp) = NEXT_BLKP(bp);
-        // bp = PREV_BLKP(splitp);
     }
 
-    // We have a perfect fit
+    // Do not split
     else {
         PUT(HDRP(bp), PACK(sizeblock,1));
         PUT(FTRP(bp), PACK(sizeblock,1));
@@ -212,12 +205,10 @@ int mm_init(void)
     PUT(heap_listp + 3*WSIZE, PACK(0,1));
     heap_listp += 2*WSIZE;
 
-    // heap_listp = p;
-
     if (extend_heap(CHUNKSIZE/WSIZE) == NULL){ //cannot extend heap
         return -1;
     }
-    printf("init success");
+    printf("\ninit success\n");
     return 0;
 }
 
@@ -245,7 +236,7 @@ void *mm_malloc(size_t size)
     if (size == 0){
         return NULL;
     }
-    printf("try to allocate memory");
+    printf("try to allocate memory\n");
     if (size <= DSIZE) {
         asize = 2 * DSIZE;
     }
@@ -258,7 +249,7 @@ void *mm_malloc(size_t size)
 
     if (bp != NULL){
         place(bp,asize);
-        printf("malloc success");
+        printf("malloc success\n");
         return bp;
     }
 
@@ -270,7 +261,7 @@ void *mm_malloc(size_t size)
     }
 
     place(bp, asize);
-    printf("malloc success with extented heap");
+    printf("malloc success with extented heap\n");
     return bp;
 
 }
@@ -281,7 +272,7 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {   
-    printf("try to free block");
+    printf("try to free block\n");
     size_t size = GET_SIZE(HDRP(ptr));
     PUT(HDRP(ptr), PACK(size, 0));
     PUT(FTRP(ptr), PACK(size,0));
