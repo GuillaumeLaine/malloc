@@ -54,10 +54,10 @@ team_t team = {
 
 #define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
-#define HDRP(bp) ((char *)(bp) - 4)
-#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp))-8)
+#define HDRP(bp) ((char *)(bp) - WSIZE)
+#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
 
-#define NEXT_BLKP(bp)  ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
+#define NEXT_BLKP(bp)  ((char *)(bp) + GET_SIZE((HDRP(bp))))
 #define PREV_BLKP(bp)  ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
 static char *heap_listp;// pointer to the prologue block
@@ -100,8 +100,13 @@ static void *extend_heap(size_t words){
     char *bp;
     size_t size;
 
+<<<<<<< HEAD
     size = (words % 2) ? (words+1)*WSIZE : words * WSIZE;
     bp = mem_sbrk(size);                    
+=======
+    size = (words % 2) ? (words+1)*WSIZE : words * WSIZE; // make sure size is divisible by DSIZE
+    bp = mem_sbrk(size);
+>>>>>>> 50404f00f1ef08733821659ba39fe79a143eff63
     if ((long)(bp) == -1){
         printf("NOOOOOOOO\n");
         return NULL;
@@ -203,7 +208,7 @@ int mm_init(void)
     PUT(p, 0);
     PUT(p + 1*WSIZE, PACK(DSIZE,1));
     PUT(p + 2*WSIZE, PACK(DSIZE,1));
-    PUT(p + 3*WSIZE, PACK(0,1));
+    PUT(p + 3*WSIZE, PACK(0,1));8t
     // p += 2*WSIZE;
 
     // heap_listp = p;
