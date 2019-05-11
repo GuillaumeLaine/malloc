@@ -159,7 +159,7 @@ void place(char* bp, size_t size){
         PUT(HDRP(splitp), PACK(sizesplit,0));
         PUT(FTRP(splitp), PACK(sizesplit,0));
 
-        bp = NEXT_BLKP(bp); // bp now points 
+        //bp = NEXT_BLKP(bp); // bp now points 
     }
 
     // Do not split
