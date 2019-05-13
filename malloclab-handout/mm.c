@@ -67,17 +67,19 @@ static void *coalesce(void *bp){
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
 
+    // Previous and next blocks are allocated
     if (prev_alloc && next_alloc){
         return bp;
     }
 
+    // Only previous block is allocated
     else if (prev_alloc && !next_alloc){
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(bp), PACK(size,0));
         PUT(FTRP(bp), PACK(size,0));
-
     }
 
+    // Only next block is allocated
     else if (!prev_alloc && next_alloc){
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
@@ -85,6 +87,7 @@ static void *coalesce(void *bp){
         bp = PREV_BLKP(bp);
     }
 
+    // Previous and next blocks are free
     else{
         size += GET_SIZE(HDRP(PREV_BLKP(bp)))+ GET_SIZE(FTRP(NEXT_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
@@ -99,35 +102,43 @@ static void *coalesce(void *bp){
 static void *extend_heap(size_t words){
     char *bp;
     size_t size;
-
+    printf("try to extend the heap with size %d", words);
+    if (words == 0){
+        return NULL;
+    }
     size = (words % 2) ? (words+1)*WSIZE : words * WSIZE; // make sure size is divisible by DSIZE
     bp = mem_sbrk(size);
     if ((long)(bp) == -1){
-        printf("NOOOOOOOO\n");
         return NULL;
     }
 
     PUT(HDRP(bp), PACK(size,0));            // This HDR overwrites old epilogue
-    PUT(FTRP(bp), PACK(size,0));            // This FTR is 2 WSIZE befire the new brk pointer
-    PUT(HDRP(NEXT_BLKP(bp)),PACK(0,1));     // Create new Epilogue as next block to newly free space, and WSIZE before brk pointer 
-
+    PUT(FTRP(bp), PACK(size,0));            // This FTR is 2 WSIZE before the new brk pointer
+    PUT(HDRP(NEXT_BLKP(bp)),PACK(0,1));     // Create new Epilogue as next block to newly free space, placed WSIZE before brk pointer 
+    printf("actually extend heap with size %d", size);
     return coalesce(bp);
 }
 
 char *find_fit(size_t size){
     // Implemented using first fit 
-    //void *bp = mem_heap_lo() + 2*WSIZE; // start right after Prologue HDR
+
     void *bp = heap_listp;
     void *end = mem_heap_hi();
 
-    while ((bp < end) && (GET_ALLOC(HDRP(bp)) || size >= GET_SIZE(HDRP(bp)))){
-        printf("\nRunning loop for size %d. Current block of size %d at %p\n", size, GET_SIZE(HDRP(bp)), bp);
-        printf("Next block pointer %p\n", NEXT_BLKP(bp));
-        printf("End pointer is %p\n", end);
+    while ((bp < end) && (GET_ALLOC(HDRP(bp)) || size > GET_SIZE(HDRP(bp)))){
+        //printf("Trying to fit %d bytes in block of size %d at %p...\n", size, GET_SIZE(HDRP(bp)), bp);
+        //printf("Prologue at %p, size of prologue %d Epilogue at %p\n", heap_listp, GET_SIZE(HDRP(heap_listp)), end);
+        if (GET_ALLOC(HDRP(bp))) {
+            //printf("Already allocated.\n");
+        }
+        else {
+            //printf("Size insufficient.\n");
+        }
         bp = NEXT_BLKP(bp);
     }
 
-    if (bp < end) {
+    if (bp >= end) {
+        // no fit. need to extend heap.
         return NULL;
     }
 
@@ -137,36 +148,30 @@ char *find_fit(size_t size){
 void place(char* bp, size_t size){
     size_t sizeblock = GET_SIZE(HDRP(bp));
 
+    printf("Placing %d bytes in %d bytes of free space at %p ", size, sizeblock, bp);
 
     if (sizeblock >= size + 2*DSIZE){ // Split iff remaining free block has space for FTR, HDR, and 1 DSIZE (to respect alignement requirements) of payload
         size_t sizesplit = sizeblock - size;
 
         //put allocated block before free block
 
-        /*char* splitp = (char*) (bp) + size;
+        char* splitp = (char*) (bp) + size;
 
         PUT(HDRP(bp), PACK(size,1));
         PUT(FTRP(bp), PACK(size,1));
         PUT(HDRP(splitp), PACK(sizesplit,0));
-        PUT(FTRP(splitp), PACK(sizesplit,0));*/
-
-        //put the allocated block at the end of the free block
-
-        PUT(HDRP(bp), PACK(sizesplit,0));
-        PUT(FTRP(bp), PACK(sizesplit,0));
-        PUT(HDRP(NEXT_BLKP(bp)), PACK(size, 1));
-        PUT(FTRP(PREV_BLKP(bp)), PACK(size, 1));
-
-        bp = NEXT_BLKP(bp);
+        PUT(FTRP(splitp), PACK(sizesplit,0));
+        printf("with splitting\n");
+        //bp = NEXT_BLKP(bp); // bp no points 
     }
 
     // Do not split
     else {
         PUT(HDRP(bp), PACK(sizeblock,1));
         PUT(FTRP(bp), PACK(sizeblock,1));
+        printf("without splitting\n");
     }
 }
-
 
 int mm_check(void) {
     // check for inconsistencies 
@@ -174,14 +179,30 @@ int mm_check(void) {
     //look for overlapping
 
     char* p = heap_listp;
-
+    size_t totalsize = 0;
+    //Check coalescing 
     while((char *)mem_heap_hi()>p){
-        if (p + GET_SIZE(HDRP(p)) == NEXT_BLKP(p)){
-            p = NEXT_BLKP(p);
-        }
-        else {
+        if (p> heap_listp){
+            if (!GET_ALLOC(HDRP(p)) && (!GET_ALLOC(NEXT_BLKP(HDRP(p))) || !GET_ALLOC(PREV_BLKP(HDRP(p))))){ //check that a free block has no free block neighboors
+            printf("\nproblem with coalesce()\n");
             return 0;
+            }
         }
+
+        else{
+            if (!GET_ALLOC(HDRP(p)) && !GET_ALLOC(NEXT_BLKP(p))){
+                printf("\nproblem with coalesce()\n");
+                return 0;
+            }
+        }
+
+        totalsize += GET_SIZE(HDRP(p));
+        p = NEXT_BLKP(p);
+    }
+
+    if (mem_heapsize()!=totalsize){
+        printf("\nthe size of the heap is not coherent\n");
+        return 0;
     }
     return 1;
 }
@@ -193,27 +214,6 @@ int mm_check(void) {
  */
 int mm_init(void)
 {
-    /*
-    void *p = mem_sbrk(4*WSIZE);
-    
-    if (p == (void *)-1){
-        return -1;
-    }
-
-    PUT(p, 0);
-    PUT(p + 1*WSIZE, PACK(DSIZE,1));
-    PUT(p + 2*WSIZE, PACK(DSIZE,1));
-    PUT(p + 3*WSIZE, PACK(0,1));8t
-    // p += 2*WSIZE;
-
-    // heap_listp = p;
-
-    if (extend_heap(CHUNKSIZE/WSIZE) == NULL){ //cannot extend heap
-        return -1;
-    }
-
-    return 0;//
-    */
     heap_listp = mem_sbrk(4*WSIZE); // 4 WSIZE for alignement, Prologue HDR, FTR and Epilogue
     
     if (heap_listp == (void *)-1){
@@ -258,48 +258,45 @@ void *mm_malloc(size_t size)
     if (size == 0){
         return NULL;
     }
-    printf("try to allocate memory\n");
+    printf("\nTrying to allocate memory - end block at %p:\n", mem_heap_hi());
     
     asize = ALIGN(size) + DSIZE; //align size and add space for HDR and FTR
-
-    /*
-    if (size <= DSIZE) {
-        asize = 2 * DSIZE;
-    }
-
-    else{
-        asize = DSIZE * ((size + DSIZE + DSIZE - 1)/DSIZE);
-    }
-    */
 
     bp = find_fit(asize); // find free block which can fit asize
 
     if (bp != NULL){ 
-        place(bp,asize);
+        printf("Fit found at %p, now placing.\n", bp);
+        place(bp, asize);
+        /*
         if (mm_check()) {
-            printf("malloc success\n");
+            // printf("malloc success\n");
         }
         else {
-            printf("check fails in mm_malloc\n");
+            // printf("check fails in mm_malloc\n");
         }
         return bp;
+        */
     }
 
     // no place left to fit a size
+
     extendsize = MAX(asize, CHUNKSIZE);
+    printf("No fit found in heap. Extending heap by %d\n", extendsize);
     bp = extend_heap(extendsize/WSIZE);
     if (bp  == NULL){
-        printf("malloc fail\n");
+        printf("sbrk failed\n");
         return NULL;
     }
 
     place(bp, asize);
+    /*
     if (mm_check()) {
-            printf("malloc success with extented heap\n");
+            // printf("malloc success with extented heap\n");
         }
     else {
-            printf("check fails in mm_malloc and try to extend heap\n");
+            // printf("check fails in mm_malloc and try to extend heap\n");
         }
+        */
     return bp;
 
 }
@@ -310,7 +307,7 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {   
-    printf("try to free block\n");
+    // printf("try to free block\n");
     size_t size = GET_SIZE(HDRP(ptr));
     PUT(HDRP(ptr), PACK(size, 0));
     PUT(FTRP(ptr), PACK(size,0));
@@ -335,6 +332,8 @@ void *mm_realloc(void *ptr, size_t size)
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
     return newptr;
+
+
 }
 
 
