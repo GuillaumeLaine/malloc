@@ -131,7 +131,7 @@ static void *coalesce(void *bp){
 
     // Only next block is allocated
     else if (!prev_alloc && next_alloc){
-        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
         PUT(FTRP(bp), PACK(size,0));
         bp = PREV_BLKP(bp);
