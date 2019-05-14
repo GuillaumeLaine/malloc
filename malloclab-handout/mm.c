@@ -366,7 +366,7 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    void *oldptr = ptr;
+    /*void *oldptr = ptr;
     void *newptr;
     size_t copySize;
     
@@ -378,7 +378,33 @@ void *mm_realloc(void *ptr, size_t size)
       copySize = size;
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
+    return newptr;*/
+
+    if (ptr == NULL){
+        return mm_malloc(size);
+    }
+
+    if (size == 0){
+        mm_free(ptr);
+        return NULL;
+    }
+    
+    void *oldptr = ptr;
+    void *newptr;
+    size_t copySize;
+    copySize = ALIGN(size);
+    newptr = mm_malloc(size);
+    if (newptr == NULL)
+      return NULL;
+    if (size < copySize)
+      copySize = size;
+    memcpy(newptr, oldptr, copySize);
+    mm_free(oldptr);
     return newptr;
+
+
+
+
 
 
 }
