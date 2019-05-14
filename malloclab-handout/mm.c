@@ -62,12 +62,12 @@ team_t team = {
 
 static char *heap_listp;// pointer to the prologue block
 
-static int mm_check(void) {
+/*static int mm_check(void) {
     // check for inconsistencies 
 
     //look for overlapping
 
-    /*char* p = heap_listp;
+    char* p = heap_listp;
     size_t totalsize = 0;
     //Check coalescing 
     while((char *)mem_heap_hi()>p){
@@ -93,7 +93,7 @@ static int mm_check(void) {
         printf("\nthe size of the heap is not coherent\n");
         return 0;
     }
-    return 1;*/
+    return 1;
 
     // check for no 0 size block in the middle
 
@@ -111,7 +111,7 @@ static int mm_check(void) {
     }
 
     return  1;
-}
+}*/
 
 static void *coalesce(void *bp){
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
@@ -143,19 +143,15 @@ static void *coalesce(void *bp){
         PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size,0));
         bp = PREV_BLKP(bp);
-    }
-    
-    if (!mm_check()){
-        printf("pb in coalesce \n");
-    }
-    return bp;
+    }  
+    return bp;  
 }
 
 
 static void *extend_heap(size_t words){
     char *bp;
     size_t size;
-    printf("try to extend the heap with size %d", words);
+    //printf("try to extend the heap with size %d", words);
     if (words == 0){
         return NULL;
     }
@@ -168,10 +164,7 @@ static void *extend_heap(size_t words){
     PUT(HDRP(bp), PACK(size,0));            // This HDR overwrites old epilogue
     PUT(FTRP(bp), PACK(size,0));            // This FTR is 2 WSIZE before the new brk pointer
     PUT(HDRP(NEXT_BLKP(bp)),PACK(0,1));     // Create new Epilogue as next block to newly free space, placed WSIZE before brk pointer 
-    printf("actually extend heap with size %d", size);
-    if (!mm_check()){
-        printf("pb in extend heap\n");
-    }
+    //printf("actually extend heap with size %d", size);
     return coalesce(bp);
 }
 
@@ -225,21 +218,16 @@ static void place(char* bp, size_t size){
         bp = NEXT_BLKP(bp);
         PUT(HDRP(bp), PACK(sizesplit,0));
         PUT(FTRP(bp), PACK(sizesplit,0));
-        printf("with splitting\n");
 
     }
 
     else {
         PUT(HDRP(bp), PACK(sizeblock,1));
         PUT(FTRP(bp), PACK(sizeblock,1));
-        printf("without splitting\n");
     }
 
-    printf("Placing %d bytes in %d bytes of free space at %p ", size, sizeblock, bp);
+    //printf("Placing %d bytes in %d bytes of free space at %p ", size, sizeblock, bp);
 
-    if (!mm_check()){
-        printf("pb in place\n");
-    }
    /* if (sizeblock >= size + 2*DSIZE){ // Split iff remaining free block has space for FTR, HDR, and 1 DSIZE (to respect alignement requirements) of payload
         size_t sizesplit = sizeblock - size;
 
@@ -288,7 +276,7 @@ int mm_init(void)
     if (extend_heap(CHUNKSIZE/WSIZE) == NULL){ //cannot extend heap
         return -1;
     }
-    printf("\ninit success\n");
+    //printf("\ninit success\n");
     return 0;
 }
 
@@ -316,14 +304,14 @@ void *mm_malloc(size_t size)
     if (size == 0){
         return NULL;
     }
-    printf("\nTrying to allocate memory - end block at %p:\n", mem_heap_hi());
+    //printf("\nTrying to allocate memory - end block at %p:\n", mem_heap_hi());
     
     asize = ALIGN(size) + DSIZE; //align size and add space for HDR and FTR
 
     bp = find_fit(asize); // find free block which can fit asize
 
     if (bp != NULL){ 
-        printf("Fit found at %p, now placing.\n", bp);
+        //printf("Fit found at %p, now placing.\n", bp);
         place(bp, asize);
         /*
         if (mm_check()) {
@@ -331,24 +319,21 @@ void *mm_malloc(size_t size)
         }
         else {
             // printf("check fails in mm_malloc\n");
-        }
+        }*/
         return bp;
-        */
+        
     }
 
     // no place left to fit a size
 
     extendsize = MAX(asize, CHUNKSIZE);
-    printf("No fit found in heap. Extending heap by %d\n", extendsize);
+    //printf("No fit found in heap. Extending heap by %d\n", extendsize);
     bp = extend_heap(extendsize/WSIZE);
     if (bp  == NULL){
-        printf("sbrk failed\n");
+        //printf("sbrk failed\n");
         return NULL;
     }
 
-    if (bp == mem_heap_hi()+1){
-        printf("\nlittle problem maybe...\n");
-    }
     place(bp, asize);
     /*
     if (mm_check()) {
@@ -358,9 +343,7 @@ void *mm_malloc(size_t size)
             // printf("check fails in mm_malloc and try to extend heap\n");
         }
         */
-    if (!mm_check()){
-        printf("pb in mm_malloc\n");
-    }
+    
     return bp;
 
 }
