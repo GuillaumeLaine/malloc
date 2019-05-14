@@ -62,6 +62,7 @@ team_t team = {
 
 static char *heap_listp;// pointer to the prologue block
 
+
 static int mm_check(void) {
     // check for inconsistencies 
 
@@ -206,6 +207,27 @@ static char *find_fit(size_t size){
     return NULL;
 }
 
+static char *bestfit(size_t size){
+    
+    void *bp;
+    void *ret = NULL;
+    size_t fitsize;
+    fitsize = mem_heapsize();
+    for(bp = heap_listp; GET_SIZE(HDRP(bp))>0; bp = NEXT_BLKP(bp)){
+        if (!GET_ALLOC(HDRP(bp)) && (size <= GET_SIZE(HDRP(bp)))){
+            if (GET_SIZE(HDRP(bp))==size){
+                return bp;
+            }
+            else if (GET_SIZE(HDRP(bp))<=fitsize){
+                fitsize = GET_SIZE(HDRP(bp));
+                ret = bp;
+            }
+        }
+    }
+    return ret ;
+
+}
+
 static void place(char* bp, size_t size){
     size_t sizeblock = GET_SIZE(HDRP(bp));
     size_t sizesplit = sizeblock - size;
@@ -306,7 +328,7 @@ void *mm_malloc(size_t size)
     
     asize = ALIGN(size) + DSIZE; //align size and add space for HDR and FTR
 
-    bp = find_fit(asize); // find free block which can fit asize
+    bp = bestfit(asize); // find free block which can fit asize
 
     if (bp != NULL){ 
         //printf("Fit found at %p, now placing.\n", bp);
