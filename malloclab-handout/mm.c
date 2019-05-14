@@ -62,11 +62,61 @@ team_t team = {
 
 static char *heap_listp;// pointer to the prologue block
 
+static int mm_check(void) {
+    // check for inconsistencies 
+
+    //look for overlapping
+
+    /*char* p = heap_listp;
+    size_t totalsize = 0;
+    //Check coalescing 
+    while((char *)mem_heap_hi()>p){
+        if (p> heap_listp){
+            if (!GET_ALLOC(HDRP(p)) && (!GET_ALLOC(NEXT_BLKP(HDRP(p))) || !GET_ALLOC(PREV_BLKP(HDRP(p))))){ //check that a free block has no free block neighboors
+            printf("\nproblem with coalesce()\n");
+            return 0;
+            }
+        }
+
+        else{
+            if (!GET_ALLOC(HDRP(p)) && !GET_ALLOC(NEXT_BLKP(p))){
+                printf("\nproblem with coalesce()\n");
+                return 0;
+            }
+        }
+
+        totalsize += GET_SIZE(HDRP(p));
+        p = NEXT_BLKP(p);
+    }
+
+    if (mem_heapsize()!=totalsize){
+        printf("\nthe size of the heap is not coherent\n");
+        return 0;
+    }
+    return 1;*/
+
+    // check for no 0 size block in the middle
+
+    char* p = heap_listp;
+    char* stop = mem_heap_hi();
+
+    printf("\n the start is at %p and the end at %p", p, stop);
+
+    while (p<= stop){
+        if (GET_SIZE(HDRP(p))==0){
+            printf("\nget a block of size 0 at %p\n", p);
+            return 0;
+        }
+        p = NEXT_BLKP(p);
+    }
+
+    return  1;
+}
+
 static void *coalesce(void *bp){
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
-
     // Previous and next blocks are allocated
     if (prev_alloc && next_alloc){
         return bp;
@@ -94,7 +144,10 @@ static void *coalesce(void *bp){
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size,0));
         bp = PREV_BLKP(bp);
     }
-
+    
+    if (!mm_check()){
+        printf("pb in coalesce \n");
+    }
     return bp;
 }
 
@@ -116,14 +169,22 @@ static void *extend_heap(size_t words){
     PUT(FTRP(bp), PACK(size,0));            // This FTR is 2 WSIZE before the new brk pointer
     PUT(HDRP(NEXT_BLKP(bp)),PACK(0,1));     // Create new Epilogue as next block to newly free space, placed WSIZE before brk pointer 
     printf("actually extend heap with size %d", size);
+    if (!mm_check()){
+        printf("pb in extend heap\n");
+    }
     return coalesce(bp);
 }
 
-char *find_fit(size_t size){
+static char *find_fit(size_t size){
     // Implemented using first fit 
 
-    void *bp = heap_listp;
+    /*void *bp = heap_listp;
     void *end = mem_heap_hi();
+
+    if (bp >= end) {
+        // no fit. need to extend heap.
+        return NULL;
+    }
 
     while ((bp < end) && (GET_ALLOC(HDRP(bp)) || size > GET_SIZE(HDRP(bp)))){
         //printf("Trying to fit %d bytes in block of size %d at %p...\n", size, GET_SIZE(HDRP(bp)), bp);
@@ -142,15 +203,44 @@ char *find_fit(size_t size){
         return NULL;
     }
 
-    return bp;
+    return bp;*/
+
+    void *bp;
+
+    for(bp = heap_listp; GET_SIZE(HDRP(bp))>0; bp = NEXT_BLKP(bp)){
+        if (!GET_ALLOC(HDRP(bp)) && (size <= GET_SIZE(HDRP(bp)))){
+            return bp;
+        }
+    }
+    return NULL;
 }
 
-void place(char* bp, size_t size){
+static void place(char* bp, size_t size){
     size_t sizeblock = GET_SIZE(HDRP(bp));
+    size_t sizesplit = sizeblock - size;
+
+    if (sizesplit >= 2*DSIZE){
+        PUT(HDRP(bp), PACK(size,1));
+        PUT(FTRP(bp), PACK(size,1));
+        bp = NEXT_BLKP(bp);
+        PUT(HDRP(bp), PACK(sizesplit,0));
+        PUT(FTRP(bp), PACK(sizesplit,0));
+        printf("with splitting\n");
+
+    }
+
+    else {
+        PUT(HDRP(bp), PACK(sizeblock,1));
+        PUT(FTRP(bp), PACK(sizeblock,1));
+        printf("without splitting\n");
+    }
 
     printf("Placing %d bytes in %d bytes of free space at %p ", size, sizeblock, bp);
 
-    if (sizeblock >= size + 2*DSIZE){ // Split iff remaining free block has space for FTR, HDR, and 1 DSIZE (to respect alignement requirements) of payload
+    if (!mm_check()){
+        printf("pb in place\n");
+    }
+   /* if (sizeblock >= size + 2*DSIZE){ // Split iff remaining free block has space for FTR, HDR, and 1 DSIZE (to respect alignement requirements) of payload
         size_t sizesplit = sizeblock - size;
 
         //put allocated block before free block
@@ -170,43 +260,11 @@ void place(char* bp, size_t size){
         PUT(HDRP(bp), PACK(sizeblock,1));
         PUT(FTRP(bp), PACK(sizeblock,1));
         printf("without splitting\n");
-    }
+    }*/
+
+    /*PUT(HDRP(bp), PACK(sizeblock,1));
+    PUT(FTRP(bp), PACK(sizeblock,1));*/
 }
-
-int mm_check(void) {
-    // check for inconsistencies 
-
-    //look for overlapping
-
-    char* p = heap_listp;
-    size_t totalsize = 0;
-    //Check coalescing 
-    while((char *)mem_heap_hi()>p){
-        if (p> heap_listp){
-            if (!GET_ALLOC(HDRP(p)) && (!GET_ALLOC(NEXT_BLKP(HDRP(p))) || !GET_ALLOC(PREV_BLKP(HDRP(p))))){ //check that a free block has no free block neighboors
-            printf("\nproblem with coalesce()\n");
-            return 0;
-            }
-        }
-
-        else{
-            if (!GET_ALLOC(HDRP(p)) && !GET_ALLOC(NEXT_BLKP(p))){
-                printf("\nproblem with coalesce()\n");
-                return 0;
-            }
-        }
-
-        totalsize += GET_SIZE(HDRP(p));
-        p = NEXT_BLKP(p);
-    }
-
-    if (mem_heapsize()!=totalsize){
-        printf("\nthe size of the heap is not coherent\n");
-        return 0;
-    }
-    return 1;
-}
-
 
 
 /* 
@@ -288,6 +346,9 @@ void *mm_malloc(size_t size)
         return NULL;
     }
 
+    if (bp == mem_heap_hi()+1){
+        printf("\nlittle problem maybe...\n");
+    }
     place(bp, asize);
     /*
     if (mm_check()) {
@@ -297,6 +358,9 @@ void *mm_malloc(size_t size)
             // printf("check fails in mm_malloc and try to extend heap\n");
         }
         */
+    if (!mm_check()){
+        printf("pb in mm_malloc\n");
+    }
     return bp;
 
 }
