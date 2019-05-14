@@ -62,7 +62,7 @@ team_t team = {
 
 static char *heap_listp;// pointer to the prologue block
 
-/*static int mm_check(void) {
+static int mm_check(void) {
     // check for inconsistencies 
 
     //look for overlapping
@@ -93,11 +93,9 @@ static char *heap_listp;// pointer to the prologue block
         printf("\nthe size of the heap is not coherent\n");
         return 0;
     }
-    return 1;
-
     // check for no 0 size block in the middle
 
-    char* p = heap_listp;
+    p = heap_listp;
     char* stop = mem_heap_hi();
 
     printf("\n the start is at %p and the end at %p", p, stop);
@@ -111,7 +109,7 @@ static char *heap_listp;// pointer to the prologue block
     }
 
     return  1;
-}*/
+}
 
 static void *coalesce(void *bp){
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
