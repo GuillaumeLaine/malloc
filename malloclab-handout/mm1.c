@@ -127,7 +127,7 @@ static void *extend_heap(size_t words){
     if (words == 0){
         return NULL;
     }
-
+agre
     size = (words % 2) ? (words+1)*WSIZE : words * WSIZE; // make sure size is divisible by DSIZE
     bp = mem_sbrk(size);
     
@@ -142,6 +142,17 @@ static void *extend_heap(size_t words){
     return coalesce(bp);
 }
 
+static char* find_inlist(size_t blocksize, size_t offset){
+
+    char* bp = GET(heap_listp + offset); //initialize bp at the beginning of the suited segregated list
+    while (bp != NULL){
+        if (blocksize <= GET_SIZE(HDRP(bp))){
+            break;
+        }
+        bp = (char *) GET(NEXT_FREE(bp));
+    }
+    return bp;
+}
 static char *bestfit(size_t size){
     size_t good_offL;
 
@@ -165,9 +176,23 @@ static char *bestfit(size_t size){
         good_offL = OFF_L5
     }
 
-    char* bp = (char *) GET(heap_listp + good_offL);
+    char* bp = NULL;
 
+    for (size_t offset = good_offL; offset<= OFF_L5; offset += 8){
+        if ((bp=find_inlist(size, offset)) != NULL){
+            return bp;
+        }
+    }
+    return NULL;
 }
+
+static void place(void *bp, size_t size){
+    size_t sizeblock = GET_SIZE(HDRP(bp));
+    removefrom_L(ptr,sizeblock); //since we are allocating this block need to remove it from its segregated list
+    PUT(HDRP(bp), PACK(sizeblock,1));
+    PUT(FTRP(bp), PACK(sizeblock,1));
+}
+
 
 int mm_init(void){
 
@@ -247,3 +272,12 @@ void *mm_malloc(size_t size) {
     return bp;
 }
 
+void mm_free(void *ptr){
+
+    printf("try to free block\n");
+    size_t size = GET_SIZE(HDRP(ptr));
+    PUT(HDRP(ptr), PACK(size, 0));
+    PUT(FTRP(ptr), PACK(size,0));
+    addto_segL(ptr,size);  //since we have freed, need to add it to its suited segregated list
+    coalesce(ptr);
+}
