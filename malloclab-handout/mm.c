@@ -94,16 +94,17 @@ static int mm_check(void) {
         printf("\nthe size of the heap is not coherent\n");
         return 0;
     }
-    // check for no 0 size block in the middle
+    // check for that all heap blocks have valid heap adresses
 
     p = heap_listp;
-    char* stop = mem_heap_hi();
+    char* end = mem_heap_hi();
 
-    printf("\n the start is at %p and the end at %p", p, stop);
+    printf("\n the start is at %p and the end at %p\n", p, end);
 
-    while (p<= stop){
-        if (GET_SIZE(HDRP(p))==0){
-            printf("\nget a block of size 0 at %p\n", p);
+    while (GET_SIZE(HDRP(p))>0){
+        if (p>end){
+            printf("\n the start is at %p and the end at %p, ", p, end);
+            printf("%p is not a valid heap address\n",p);
             return 0;
         }
         p = NEXT_BLKP(p);
@@ -414,20 +415,22 @@ void *mm_realloc(void *ptr, size_t size)
     size_t copySize;
     copySize = ALIGN(size);
     newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    if (size < copySize)
-      copySize = size;
+    if (newptr == NULL){
+        return NULL;
+    }
+    if (size < copySize) {
+        copySize = size;
+    }
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
     return newptr;
 
-
-
-
-
-
 }
+
+
+
+
+
 
 
 
